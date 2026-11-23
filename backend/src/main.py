@@ -14,8 +14,8 @@ from src.services.business import queue
 
 @asynccontextmanager
 async def lifespan(app):
-    run_migrations()
     Base.metadata.create_all(engine)
+    run_migrations()
     if os.getenv('SEED_DEMO', 'true').lower() == 'true':
         try:
             from scripts.seed_demo import seed
