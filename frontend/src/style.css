@@ -11,3 +11,11 @@ main{width:min(1312px,calc(100% - 4rem));margin:0 auto}.heading{padding:2.2rem 0
 @media(max-width:900px){.workarea,.workarea.reverse{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.fold{min-height:320px;box-shadow:none}.pair-strip{font-size:13px}.heading{padding-block:1.25rem 1rem}.fold h1{font-size:3rem}}
 @media(prefers-reduced-motion:reduce){button{transition:none}}
+.badge{display:inline-block;padding:.12em .6em;border-radius:999px;font-size:.78rem;font-weight:700;white-space:nowrap}
+.badge.pending{background:oklch(86% .11 83);color:oklch(32% .1 60)}
+.badge.effective{background:oklch(85% .1 155);color:oklch(30% .09 155)}
+.badge.stale{background:oklch(83% .03 245);color:var(--dim)}
+.chip{border:1px solid var(--rule);background:var(--paper);color:var(--bark);padding:.35em .8em;margin:.2rem;border-radius:999px}
+.chip.on{background:var(--bark);color:var(--sheet)}
+.hint{font-size:.85rem;color:var(--dim)}
+.secondary-link{font-weight:600}

@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from src.config.database import Base, Session, engine
+from src.config.migrations import run_migrations
 from src.middlewares.http import ErrorMiddleware, RequestIdMiddleware
 from src.routes.api import router
 from src.services.business import queue
@@ -13,6 +14,7 @@ from src.services.business import queue
 
 @asynccontextmanager
 async def lifespan(app):
+    run_migrations()
     Base.metadata.create_all(engine)
     if os.getenv('SEED_DEMO', 'true').lower() == 'true':
         try:

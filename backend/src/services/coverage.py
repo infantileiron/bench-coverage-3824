@@ -50,7 +50,8 @@ def analyze(records, config):
         if not reasons:
             population, var = chapman(n_a, n_b, overlap)
             missed = max(0., population - seen)
-        rows.append({'区段':region['title'], 'A 轮':n_a, 'B 轮':n_b, '重合':overlap, '合并实见':seen,
+        rows.append({'区段':region['title'], '区段编号':region['code'],
+                     'A 轮':n_a, 'B 轮':n_b, '重合':overlap, '合并实见':seen,
                      '估计总量':round(population,2) if population is not None else None,
                      '估计漏查':round(missed,2) if missed is not None else None,
                      '估计方差':round(var,2) if var is not None else None,
@@ -68,3 +69,47 @@ def analyze(records, config):
             'summary':summary,'rows':eligible+pending,
             'notes':['各区段固定资产范围，A、B 轮独立记录同一标签，轮内去重。',
                      '合计仅覆盖有可比观察且重合达标的区段。未估算区段保留在证据中。']}
+
+
+def _row_index(result):
+    if not result:
+        return {}
+    return {row['区段编号']: row for row in result.get('rows', [])}
+
+
+def build_diff(old_result, new_result, supplement_records):
+    """构造新旧有效版本的差异：补入记录明细 + 各区段前后漏查数。"""
+    old_rows = _row_index(old_result)
+    segment_misses = []
+    for row in new_result.get('rows', []):
+        code = row['区段编号']
+        previous = old_rows.get(code)
+        old_missed = previous['估计漏查'] if previous else None
+        segment_misses.append({
+            '区段': row['区段'],
+            '区段编号': code,
+            '旧版漏查': old_missed,
+            '新版漏查': row['估计漏查'],
+            '漏查变化': (round(row['估计漏查'] - old_missed, 2)
+                       if old_missed is not None and row['估计漏查'] is not None else None),
+            '旧版实见': previous['合并实见'] if previous else 0,
+            '新版实见': row['合并实见'],
+        })
+    changes = [item for item in segment_misses
+               if item['漏查变化'] not in (None, 0) or item['旧版实见'] != item['新版实见']]
+    detail = [{'区段编号': row['segment_code'], '轮次': row['round_code'],
+               '座椅编号': row['asset_code'], '标签状态': row['state'],
+               '采集时间': row['collected_at'].isoformat() if hasattr(row['collected_at'], 'isoformat') else row['collected_at'],
+               '回传时间': row['received_at'].isoformat() if hasattr(row['received_at'], 'isoformat') else row['received_at']}
+              for row in supplement_records]
+    old_total = old_result['metrics']['可估区段漏查合计'] if old_result else None
+    new_total = new_result['metrics']['可估区段漏查合计']
+    return {
+        'supplement_count': len(detail),
+        'supplement_records': detail,
+        'segment_misses': segment_misses,
+        'changed_segments': changes,
+        'old_total_missed': old_total,
+        'new_total_missed': new_total,
+        'total_missed_delta': round(new_total - old_total, 2) if old_total is not None else None,
+    }

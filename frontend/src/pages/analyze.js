@@ -7,7 +7,7 @@ import {h} from '../utils/html.js';
 
 export async function analyze() {
   const runs = await api.analyses();
-  return {html:heading('漏查估算','每个区段分别估计总量、漏查和方差。区段封闭性、独立性和标签证据须先核准。') +
+  return {html:heading('漏查估算','每个区段分别估计总量、漏查和方差。首版仅锁定采集窗口内记录；迟到记录在「巡查批次」页通过补入重算纳入新版本。') +
       `<div class="workarea reverse"><section class="sheet"><h2>新建补巡估算</h2>${canWrite()?`
       <form id="analysis-form"><label>补巡单标题<input name="title" required value="午班补巡排序"></label>
       <label>巡查批次<input name="campaign" required value="NOV21-BENCH"></label>
