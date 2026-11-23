@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from redis import Redis
@@ -12,10 +12,22 @@ from src.models.entities import Analysis, Audit, Batch, Segment, Capture
 
 queue = Redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=2)
 QUEUE = 'bench-coverage:notifications'
+SURVEY_TIMESTAMPS = {'collected_from', 'collected_to', 'closed_at', 'collected_at', 'received_at'}
+
+
+def utc_for_storage(value):
+    """MySQL DATETIME stores UTC without an offset. Legacy offset-free input already uses UTC."""
+    if value.utcoffset() is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def record(obj, exclude=()):
-    return {col.key: getattr(obj, col.key) for col in obj.__table__.columns if col.key not in exclude}
+    values = {col.key: getattr(obj, col.key) for col in obj.__table__.columns if col.key not in exclude}
+    for key in SURVEY_TIMESTAMPS & values.keys():
+        if values[key] is not None:
+            values[key] = values[key].replace(tzinfo=timezone.utc)
+    return values
 
 
 def snapshot_record(obj):
@@ -43,11 +55,13 @@ def save_segment(db, data, user):
 
 
 def create_batch(db, data, user):
-    if data.collected_to <= data.collected_from:
+    collected_from = utc_for_storage(data.collected_from)
+    collected_to = utc_for_storage(data.collected_to)
+    if collected_to <= collected_from:
         raise HTTPException(422, '采集结束时间必须晚于开始时间')
     item = Batch(campaign=data.campaign, title=data.title,
-                 collected_from=data.collected_from, collected_to=data.collected_to,
-                 closed_at=data.collected_to, version=0)
+                 collected_from=collected_from, collected_to=collected_to,
+                 closed_at=collected_to, version=0)
     db.add(item)
     audit(db, user, 'create_batch', data.campaign)
     try:
@@ -96,7 +110,7 @@ def save_capture(db, data, user):
         Capture.asset_code == data.asset_code))
     if duplicate:
         raise HTTPException(409, '该轮资产标签已经登记，且来自不同来源记录')
-    collected_at = data.collected_at or batch.collected_to
+    collected_at = utc_for_storage(data.collected_at) if data.collected_at else batch.collected_to
     # 同一批次按实际采集时段归集：落在窗口内即当批，跨日迟到进入补入队列
     if batch.collected_from <= collected_at <= batch.collected_to:
         intake_state = IntakeState.CURRENT

@@ -1,11 +1,11 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 
 from src.config.database import Base, Session, engine
 from src.constants.enums import IntakeState, Role, Status
 from src.models.entities import Analysis, Batch, Capture, Segment, User
-from src.services.business import record, snapshot_record
+from src.services.business import record, snapshot_record, utc_for_storage
 from src.utils.security import password_hash
 
 REGIONS = [('BANK-01','柳渡段','南岸',True,range(1,31),range(13,39)),
@@ -13,9 +13,10 @@ REGIONS = [('BANK-01','柳渡段','南岸',True,range(1,31),range(13,39)),
            ('BANK-03','船坞段','南岸',False,range(1,13),range(7,16)),
            ('BANK-04','芦廊段','北岸',True,range(1,20),range(8,19))]
 CODE = 'NOV21-BENCH'
-# 周末早班采集窗口：07:00–10:30；窗口外回传即视为迟到补入
-WINDOW_FROM = datetime(2026, 11, 21, 7, 0)
-WINDOW_TO = datetime(2026, 11, 21, 10, 30)
+# 周末早班采集窗口为现场时间 07:00–10:30。
+FIELD_TIMEZONE = timezone(timedelta(hours=8))
+WINDOW_FROM = utc_for_storage(datetime(2026, 11, 21, 7, 0, tzinfo=FIELD_TIMEZONE))
+WINDOW_TO = utc_for_storage(datetime(2026, 11, 21, 10, 30, tzinfo=FIELD_TIMEZONE))
 
 
 def seed():
